@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GraphHopper Route Finder with Map</title>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      color: #0f172a;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f8fafc;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: #0ea5a3;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #e6edf3;
+      margin-top: 6px;
+    }
+    button {
+      background: #0ea5a3;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0c948d;
+    }
+    .muted { color: #6b7280; font-size: 13px; }
+    .summary {
+      padding: 12px;
+      border-radius: 10px;
+      background: #ecfeff;
+      border: 1px solid #c7f9f7;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #eef2f6;
+      text-align: left;
+    }
+    th { background: #f1f5f9; }
+    .error { color: #dc2626; font-weight: 700; }
+    .dim { color: #64748b; }
+    #map {
+      height: 400px;
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>GraphHopper — Route Finder with Map</h1>
+    <div class="muted">Available profiles: <strong>car</strong>, <strong>bike</strong>, <strong>foot</strong></div>
+
+    <label for="vehicle">Vehicle profile</label>
+    <select id="vehicle">
+      <option value="car">car</option>
+      <option value="bike">bike</option>
+      <option value="foot">foot</option>
+    </select>
+
+    <label for="orig">Starting location</label>
+    <input id="orig" placeholder="e.g. Manila, Philippines" />
+
+    <label for="dest">Destination</label>
+    <input id="dest" placeholder="e.g. Baguio, Philippines" />
+
+    <label for="key">GraphHopper API Key</label>
+    <input id="key" placeholder="Replace with your API key" value="27b08998-f69b-4d43-a3a6-3b4fda277646" />
+
+    <div style="margin-top:12px;display:flex;gap:10px">
+      <button id="go">Find Route</button>
+      <button id="clear" style="background:#64748b">Clear</button>
+    </div>
+
+    <div id="messages" style="margin-top:12px"></div>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="output" style="display:none">
+    <div class="card summary" id="summaryCard"></div>
+    <div class="card" id="directionsCard">
+      <h3 style="margin-top:0">Turn-by-Turn Directions</h3>
+      <div id="tableWrap"></div>
+    </div>
+  </div>
+
+  <script>
+    // Base URLs
+    const geocodeBase = 'https://graphhopper.com/api/1/geocode?';
+    const routeBase = 'https://graphhopper.com/api/1/route?';
+    const $ = id => document.getElementById(id);
+    const messages = $('messages');
+    const output = $('output');
+
+    // Initialize Leaflet map
+    const map = L.map('map').setView([14.5995, 120.9842], 7); // Default: Manila
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let routeLine;
+
+    function setMessage(html, isError = false) {
+      messages.innerHTML = `<div class="${isError ? 'error' : 'dim'}">${html}</div>`;
+    }
+    function clearMessage() { messages.innerHTML = ''; }
+
+    async function geocoding(location, key) {
+      if (!location || location.trim() === '') throw new Error('Location cannot be empty');
+      const params = new URLSearchParams({ q: location, limit: '1', key });
+      const url = geocodeBase + params.toString();
+
+      try {
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (resp.status === 200 && (json.hits || []).length !== 0) {
+          const hit = json.hits[0];
+          return {
+            status: 200,
+            lat: hit.point.lat,
+            lng: hit.point.lng,
+            new_loc: `${hit.name || ''}${hit.state ? ', ' + hit.state : ''}${hit.country ? ', ' + hit.country : ''}`
+          };
+        } else {
+          return { status: 'fail', lat: null, lng: null, new_loc: location };
+        }
+      } catch (err) {
+        setMessage('Network error during geocoding: ' + err.message, true);
+        return { status: 'error', lat: null, lng: null, new_loc: location };
+      }
+    }
+
+    function formatDuration(ms) {
+      const hr = Math.floor(ms / (1000 * 60 * 60));
+      const min = Math.floor((ms / (1000 * 60)) % 60);
+      const sec = Math.floor((ms / 1000) % 60);
+      return `${hr.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    }
+
+    async function findRoute() {
+      clearMessage();
+      output.style.display = 'none';
+      $('summaryCard').innerHTML = '';
+      $('tableWrap').innerHTML = '';
+
+      const vehicle = $('vehicle').value.trim().toLowerCase();
+      const origVal = $('orig').value.trim();
+      const destVal = $('dest').value.trim();
+      const key = $('key').value.trim();
+
+      if (!key) return setMessage('Please provide your GraphHopper API key', true);
+      if (!origVal || !destVal) return setMessage('Please enter both locations', true);
+
+      const orig = await geocoding(origVal, key);
+      if (orig.status !== 200) return setMessage('Could not geocode origin', true);
+      const dest = await geocoding(destVal, key);
+      if (dest.status !== 200) return setMessage('Could not geocode destination', true);
+
+      const params = new URLSearchParams();
+      params.append('key', key);
+      params.append('vehicle', vehicle);
+      params.append('points_encoded', 'false');
+      params.append('instructions', 'true');
+      params.append('point', `${orig.lat},${orig.lng}`);
+      params.append('point', `${dest.lat},${dest.lng}`);
+      const routeUrl = routeBase + params.toString();
+
+      try {
+        const resp = await fetch(routeUrl);
+        const data = await resp.json();
+        if (resp.status === 200 && data.paths && data.paths.length) {
+          const path = data.paths[0];
+          const km = path.distance / 1000;
+          const miles = km * 0.621371;
+          const duration = formatDuration(path.time);
+
+          // Summary
+          $('summaryCard').innerHTML = `
+            <div><strong style="color:#16a34a">From:</strong> ${orig.new_loc}</div>
+            <div><strong style="color:#dc2626">To:</strong> ${dest.new_loc}</div>
+            <div style="margin-top:8px"><strong>Distance:</strong> ${miles.toFixed(1)} miles / ${km.toFixed(1)} km</div>
+            <div><strong>Duration:</strong> ${duration}</div>
+          `;
+
+          // Directions table
+          let tableHTML = '<table><thead><tr><th>Instruction</th><th>Distance (km)</th><th>Distance (mi)</th></tr></thead><tbody>';
+          for (const instr of path.instructions) {
+            const dist_km = instr.distance / 1000;
+            const dist_mi = dist_km * 0.621371;
+            tableHTML += `<tr><td>${instr.text}</td><td>${dist_km.toFixed(2)}</td><td>${dist_mi.toFixed(2)}</td></tr>`;
+          }
+          tableHTML += '</tbody></table>';
+          $('tableWrap').innerHTML = tableHTML;
+
+          // Draw on map
+          const coords = path.points.coordinates.map(p => [p[1], p[0]]);
+          if (routeLine) map.removeLayer(routeLine);
+          routeLine = L.polyline(coords, { color: 'red', weight: 4 }).addTo(map);
+          map.fitBounds(routeLine.getBounds());
+
+          output.style.display = 'block';
+          setMessage('Route successfully generated!');
+        } else {
+          setMessage('Error: ' + (data.message || 'Could not find a route'), true);
+        }
+      } catch (err) {
+        setMessage('Network error during routing: ' + err.message, true);
+      }
+    }
+
+    $('go').addEventListener('click', findRoute);
+    $('clear').addEventListener('click', () => {
+      $('orig').value = '';
+      $('dest').value = '';
+      clearMessage();
+      output.style.display = 'none';
+      if (routeLine) map.removeLayer(routeLine);
+    });
+  </script>
+</body>
+</html>
