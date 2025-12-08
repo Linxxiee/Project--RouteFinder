@@ -15,8 +15,8 @@ def geocoding(location, key):
     while location == "":
         location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
     geocode_url = "https://graphhopper.com/api/1/geocode?"
-params = {"q": location, "limit": "1", "key": key}
-url = geocode_url + urllib.parse.urlencode(params)
+    params = {"q": location, "limit": "1", "key": key}
+    url = geocode_url + urllib.parse.urlencode(params)
 
 try:
     replydata = requests.get(url)
@@ -133,4 +133,5 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
