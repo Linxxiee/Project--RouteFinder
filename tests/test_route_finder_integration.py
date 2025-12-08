@@ -1,13 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
-# CRITICAL FIX: Removed 'RouteFinder' from the import list
-#                   to fix the ImportError, as the application
-#                   is now functional and class-less.
 from route_finder import _process_route_finder_logic
 from rich.console import Console
 from io import StringIO
-# F401 FIX: Removed unused imports 'json' and 'os'
-
 
 # --- Simulated API Response Data ---
 
@@ -22,7 +17,7 @@ MOCK_GEOCODE_SUCCESS = {
 
 MOCK_ROUTE_SUCCESS = {
     "paths": [{
-        "distance": 10000,  # E261 FIX: Added two spaces
+        "distance": 10000,  # 10 km
         "time": 600000,   # 10 minutes
         "instructions": [
             {"text": "Start driving", "distance": 1000},
@@ -44,7 +39,6 @@ class IntegrationTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         patcher.start()
 
-    # W291 FIX: Trailing whitespace removed
     @patch('requests.get')
     def test_full_successful_route_integration(self, mock_get):
         # Program the mock to return geocode, geocode, then route success
@@ -56,9 +50,8 @@ class IntegrationTests(unittest.TestCase):
 
         # Simulate user input: vehicle='car', start='New York', end='Boston'
         with patch('builtins.input', side_effect=['car', 'New York', 'Boston']):
-            # W291 FIX: Trailing whitespace removed
             # The key and url here should ideally match the global variables in route_finder.py
-            result = _process_route_finder_logic("fake_key", "fake_url?") # W291 FIX: Trailing whitespace removed
+            result = _process_route_finder_logic("fake_key", "fake_url?")  # E261 FIX
 
             self.assertTrue(result, "The function should indicate success (True)")
             self.assertEqual(mock_get.call_count, 3, "Expected 3 API calls.")
@@ -66,6 +59,6 @@ class IntegrationTests(unittest.TestCase):
             # Check console output
             output = self.console_output.getvalue()
             # 10000m = 6.2 miles / 10.0 km
-            self.assertIn("Distance: 6.2 miles / 10.0 km", output) # W291 FIX: Trailing whitespace removed
+            self.assertIn("Distance: 6.2 miles / 10.0 km", output)  # E261 FIX
             self.assertIn("Turn-by-Turn Directions", output)
-            self.assertIn("Duration: 00:10:00", output)  # E261 FIX: Added two spaces
+            self.assertIn("Duration: 00:10:00", output)  # 600,000ms = 10 minutes
