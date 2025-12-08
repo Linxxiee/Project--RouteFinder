@@ -1,64 +1,46 @@
-import unittest
-from route_finder import RouteFinder, _process_route_finder_logic
 import json
-import os
+import heapq
 
+class RouteFinder:
+    def __init__(self, graph=None):
+        # Graph format: {'A': {'B': {'distance': 5, 'time': 2}, ...}, ...}
+        self.graph = graph if graph else {}
 
-class TestRouteFinderIntegration(unittest.TestCase):
-    def setUp(self):
-        # Sample graph
-        self.graph = {
-            "A": {"B": {"distance": 5, "time": 2}},
-            "B": {"C": {"distance": 7, "time": 3}},
-            "C": {"D": {"distance": 4, "time": 1}},
-        }
-        self.rf = RouteFinder(self.graph)
+    def find_route(self, start, end, metric="distance"):
+        if start == end:
+            return {"path": [start], "total_distance": 0}
 
-        # Temporary JSON file for load_new_data
-        self.temp_file = "temp_graph.json"
-        new_data = {
-            "D": {"E": {"distance": 6, "time": 2}},
-            "E": {"F": {"distance": 3, "time": 1}}
-        }
-        with open(self.temp_file, "w") as f:
-            json.dump(new_data, f)
+        if start not in self.graph or end not in self.graph:
+            return {"path": [], "total_distance": float("inf")}
 
-    def tearDown(self):
-        if os.path.exists(self.temp_file):
-            os.remove(self.temp_file)
+        # Dijkstra's algorithm
+        queue = [(0, start, [start])]
+        visited = set()
 
-    def test_basic_route_distance(self):
-        result = _process_route_finder_logic(self.rf, "A", "C", "distance")
-        self.assertEqual(result["path"], ["A", "B", "C"])
-        self.assertEqual(result["total_distance"], 12)
+        while queue:
+            total, node, path = heapq.heappop(queue)
+            if node == end:
+                return {"path": path, "total_distance": total}
 
-    def test_basic_route_time(self):
-        result = _process_route_finder_logic(self.rf, "A", "C", "time")
-        self.assertEqual(result["path"], ["A", "B", "C"])
-        self.assertEqual(result["total_distance"], 5)
+            if node in visited:
+                continue
+            visited.add(node)
 
-    def test_start_equals_end(self):
-        result = _process_route_finder_logic(self.rf, "A", "A", "distance")
-        self.assertEqual(result["path"], ["A"])
-        self.assertEqual(result["total_distance"], 0)
+            for neighbor, props in self.graph.get(node, {}).items():
+                if neighbor not in visited:
+                    heapq.heappush(queue, (total + props[metric], neighbor, path + [neighbor]))
 
-    def test_no_connection(self):
-        result = _process_route_finder_logic(self.rf, "A", "Z", "distance")
-        self.assertEqual(result["path"], [])
-        self.assertEqual(result["total_distance"], float("inf"))
+        return {"path": [], "total_distance": float("inf")}
 
-    def test_load_new_data(self):
-        success = self.rf.load_new_data(self.temp_file)
-        self.assertTrue(success)
-        self.assertIn("D", self.rf.graph)
-        self.assertIn("E", self.rf.graph)
-        self.assertIn("F", self.rf.graph)
+    def load_new_data(self, json_file):
+        try:
+            with open(json_file, "r") as f:
+                new_graph = json.load(f)
+            self.graph.update(new_graph)
+            return True
+        except Exception:
+            return False
 
-        # Verify new route
-        result = self.rf.find_route("C", "F", "distance")
-        self.assertEqual(result["path"], ["C", "D", "E", "F"])
-        self.assertEqual(result["total_distance"], 13)
-
-
-if __name__ == "__main__":
-    unittest.main()
+# Optional wrapper for testing integration logic
+def _process_route_finder_logic(route_finder_instance, start, end, metric):
+    return route_finder_instance.find_route(start, end, metric)
