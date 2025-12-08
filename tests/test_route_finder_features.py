@@ -9,7 +9,8 @@ from route_finder import RouteFinder
 # Create a temporary JSON file to simulate the 'hiwayz_v2' data load
 TEST_DATA_PATH = 'test_new_data.json'
 
-class TestRouteFinder(unittest.TestCase):
+
+class TestRouteFinder(unittest.TestCase):  # E302 fix: Added an extra blank line above the class
 
     def setUp(self):
         """
@@ -31,8 +32,10 @@ class TestRouteFinder(unittest.TestCase):
 
         # Create mock data file for Feature 1 (Dynamic Node Addition)
         self.new_data = {
-            'D': {'E': {'distance': 8, 'time': 4}}, # Adds a new connection to existing D
-            'E': {'F': {'distance': 2, 'time': 1}}, # Adds new node E and F
+            # E261 fix: Added at least two spaces before the inline comment
+            'D': {'E': {'distance': 8, 'time': 4}},  # Adds a new connection to existing D
+            # E261 fix: Added at least two spaces before the inline comment
+            'E': {'F': {'distance': 2, 'time': 1}},  # Adds new node E and F
         }
         with open(TEST_DATA_PATH, 'w') as f:
             json.dump(self.new_data, f)
@@ -71,7 +74,7 @@ class TestRouteFinder(unittest.TestCase):
         result = self.rf_instance.find_route('A', 'C', metric='time')
         self.assertEqual(result['total_distance'], 2)
         self.assertEqual(result['path'], ['A', 'D', 'C'])
-        
+
     def test_invalid_metric_fails(self):
         """Tests that using an unsupported metric raises a ValueError."""
         with self.assertRaises(ValueError):
@@ -97,10 +100,11 @@ class TestRouteFinder(unittest.TestCase):
         # 2. Test that a route through the new nodes is now possible
         # Check route from A (old node) to F (new node)
         result = self.rf_instance.find_route('A', 'F', metric='distance')
-        
+
         # Route should be A -> D (100) -> E (8) -> F (2). Total: 110
         self.assertEqual(result['total_distance'], 110)
         self.assertEqual(result['path'], ['A', 'D', 'E', 'F'])
 
+
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main()  # E305 fix: Added two blank lines above this block
