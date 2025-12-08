@@ -9,7 +9,7 @@ from rich.text import Text
 console = Console()
 
 route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
+key = "27b08998-f69b-4d43-a3a6-3b4fda277646" # Replace with your API key
 
 def geocoding(location, key):
     while location == "":
@@ -133,3 +133,4 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
