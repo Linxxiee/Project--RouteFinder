@@ -7,17 +7,20 @@ from rich.text import Text
 
 # --- Initialize Rich Console ---
 console = Console()
+# NOTE: The provided key is a placeholder. Replace with your actual key if running live.
 route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
+key = "27b08998-f69b-4d43-a3a6-3b4fda277646"
 
 
 def geocoding(location, key):
     """
     Translates a human-readable location string into geographic coordinates (lat, lng).
     Handles API calls, error checking, and formatting.
+    
+    Returns: (status_code, lat, lng, new_loc)
     """
     while location == "":
-        location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
+        location = console.input("[bold red]Location cannot be empty. Enter again: [/]").strip()
 
     geocode_url = "https://graphhopper.com/api/1/geocode?"
     params = {"q": location, "limit": "1", "key": key}
@@ -37,6 +40,7 @@ def geocoding(location, key):
             country = hit.get("country", "")
             state = hit.get("state", "")
 
+            # Format location name nicely
             if name:
                 new_loc = name
                 if state:
@@ -68,7 +72,7 @@ def _process_route_finder_logic(key, route_url):
     """
     profile = ["car", "bike", "foot"]
 
-    vehicle = console.input("[bold]Enter a vehicle profile: [/]").strip().lower()
+    vehicle = console.input("[bold]Enter a vehicle profile (car, bike, foot): [/]").strip().lower()
     if vehicle in ("quit", "q"):
         return False
     if vehicle not in profile:
@@ -87,14 +91,17 @@ def _process_route_finder_logic(key, route_url):
 
     console.print("=" * 50)
 
+    # Proceed only if both geocoding calls succeeded (status_code 200)
     if orig[0] == 200 and dest[0] == 200:
         route_params = {
             "key": key,
             "vehicle": vehicle,
+            # Point requires coordinates in "lat,lng" format
             "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
             "instructions": True,
         }
 
+        # Use doseq=True for repeating parameters like 'point'
         paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
 
         try:
@@ -106,6 +113,7 @@ def _process_route_finder_logic(key, route_url):
             if paths_status == 200 and paths_data.get("paths"):
                 path_details = paths_data["paths"][0]
 
+                # 1. Calculate Summary Metrics
                 km = path_details["distance"] / 1000
                 miles = km * 0.621371
                 time_ms = path_details["time"]
@@ -113,6 +121,7 @@ def _process_route_finder_logic(key, route_url):
                 min_val = int((time_ms / (1000 * 60)) % 60)
                 sec = int((time_ms / 1000) % 60)
 
+                # 2. Print Summary Panel
                 summary_text = Text()
                 summary_text.append(f"From: {orig[3]}\n", style="bold green")
                 summary_text.append(f"To:    {dest[3]}\n", style="bold red")
@@ -127,6 +136,7 @@ def _process_route_finder_logic(key, route_url):
                     Panel(summary_text, title="Trip Summary", padding=1)
                 )
 
+                # 3. Print Directions Table
                 table = Table(title="Turn-by-Turn Directions")
                 table.add_column("Instruction", style="bold white", no_wrap=False, ratio=70)
                 table.add_column("Distance (km)", style="magenta", ratio=15)
