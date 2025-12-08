@@ -22,7 +22,7 @@ try:
   replydata = requests.get(url)
   json_status = replydata.status_code
   json_data = replydata.json()
-        
+
 if json_status == 200 and len(json_data.get("hits", [])) != 0:
   hit = json_data["hits"][0]
   lat = hit["point"]["lat"]
@@ -133,6 +133,7 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
 
 
