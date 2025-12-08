@@ -1,5 +1,3 @@
-# File: route_finder.py
-
 import requests
 import urllib.parse
 from rich.console import Console
@@ -11,96 +9,77 @@ from rich.text import Text
 console = Console()
 
 route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
-
+key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
 
 def geocoding(location, key):
-    """
-    Function to geocode a location string into coordinates using Graphhopper.
-    Handles empty input and returns status, coordinates, and formatted name.
-    """
-    while location == "":
-        location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
+    while location == "":
+        location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
+    geocode_url = "https://graphhopper.com/api/1/geocode?"
+    params = {"q": location, "limit": "1", "key": key}
+    url = geocode_url + urllib.parse.urlencode(params)
 
-    geocode_url = "https://graphhopper.com/api/1/geocode?"
-    params = {"q": location, "limit": "1", "key": key}
-    url = geocode_url + urllib.parse.urlencode(params)
+    try:
+        replydata = requests.get(url)
+        json_status = replydata.status_code
+        json_data = replydata.json()
+        
+        if json_status == 200 and len(json_data.get("hits", [])) != 0:
+            hit = json_data["hits"][0]
+            lat = hit["point"]["lat"]
+            lng = hit["point"]["lng"]
+            name = hit.get("name", "N/A")
+            value = hit.get("osm_value", "N/A")
+            country = hit.get("country", "")
+            state = hit.get("state", "")
 
-    try:
-        replydata = requests.get(url)
-        json_status = replydata.status_code
-        json_data = replydata.json()
+            if name:
+                new_loc = name
+                if state: new_loc += f", {state}"
+                if country: new_loc += f", {country}"
+            else:
+                new_loc = location
 
-        if json_status == 200 and len(json_data.get("hits", [])) != 0:
-            hit = json_data["hits"][0]
-            lat = hit["point"]["lat"]
-            lng = hit["point"]["lng"]
-            name = hit.get("name", "N/A")
-            value = hit.get("osm_value", "N/A")
-            country = hit.get("country", "")
-            state = hit.get("state", "")
+            console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
+            return json_status, lat, lng, new_loc
 
-            if name:
-                new_loc = name
-                # E701 fix: Split multiple statements onto separate lines
-                if state:
-                    new_loc += f", {state}"
-                if country:
-                    new_loc += f", {country}"
-            else:
-                new_loc = location
-
-            console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
-            return json_status, lat, lng, new_loc
-
-        else:
-            lat = "null"
-            lng = "null"
-            new_loc = location
-            msg = json_data.get('message', 'Unknown error')
-            console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
-            return json_status, lat, lng, new_loc
-
-    except requests.exceptions.RequestException as e:
-        console.print(f"[bold red]Network error during geocoding: {e}[/]")
-        return "error", "null", "null", location
+        else:
+            lat = "null"
+            lng = "null"
+            new_loc = location
+            msg = json_data.get('message', 'Unknown error')
+            console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
+            return json_status, lat, lng, new_loc
+            
+    except requests.exceptions.RequestException as e:
+        console.print(f"[bold red]Network error during geocoding: {e}[/]")
+        return "error", "null", "null", location
 
 
-# --- Main Application Loop ---
-
-
-while True:
-    console.print("\n" + "=" * 45)
-    # E501 fix: Line too long split using parentheses for clean continuation
-    console.print(Panel.fit(
-        "[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
-        title="Graphhopper",
-        subtitle="Type 'q' to quit"
-    ))
-
+def _process_route_finder_logic(key, route_url):
+    """Encapsulates the complex routing logic to satisfy C901."""
     profile = ["car", "bike", "foot"]
     vehicle = console.input("[bold]Enter a vehicle profile: [/]").strip().lower()
     if vehicle == "quit" or vehicle == "q":
-        break
+        return False
     elif vehicle not in profile:
         console.print("[yellow]No valid profile entered. Defaulting to 'car'[/]")
         vehicle = "car"
-
+    
     loc1 = console.input("[bold]Starting Location: [/]").strip()
     if loc1 == "quit" or loc1 == "q":
-        break
+        return False
     orig = geocoding(loc1, key)
-
+    
     loc2 = console.input("[bold]Destination: [/]").strip()
     if loc2 == "quit" or loc2 == "q":
-        break
+        return False
     dest = geocoding(loc2, key)
-
+    
     console.print("=" * 50)
+    
     if orig[0] == 200 and dest[0] == 200:
         route_params = {
-            "key": key,
-            "vehicle": vehicle,
+            "key": key, "vehicle": vehicle,
             "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
             "instructions": True
         }
@@ -121,7 +100,7 @@ while True:
                 sec = int((time_ms / 1000) % 60)
                 summary_text = Text()
                 summary_text.append(f"From: {orig[3]}\n", style="bold green")
-                summary_text.append(f"To:    {dest[3]}\n", style="bold red")
+                summary_text.append(f"To:   {dest[3]}\n", style="bold red")
                 summary_text.append(f"\nDistance: {miles:.1f} miles / {km:.1f} km\n", style="cyan")
                 summary_text.append(f"Duration: {hr:02d}:{min:02d}:{sec:02d}", style="cyan")
                 console.print(Panel(summary_text, title="Trip Summary", padding=1))
@@ -142,6 +121,15 @@ while True:
             console.print(f"[bold red]Network error during routing: {e}[/]")
     else:
         console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
+    return True # Continue the loop
 
+
+# --- Main Loop (now much simpler) ---
+while True:
+    console.print("\n" + "=" * 45)
+    console.print(Panel.fit("[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]", title="Graphhopper", subtitle="Type 'q' to quit"))
+    
+    if not _process_route_finder_logic(key, route_url):
+        break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
