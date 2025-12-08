@@ -16,7 +16,6 @@ def geocoding(location, key):
     """
     Translates a human-readable location string into geographic coordinates (lat, lng).
     Handles API calls, error checking, and formatting.
-    
     Returns: (status_code, lat, lng, new_loc)
     """
     while location == "":
@@ -161,7 +160,6 @@ def _process_route_finder_logic(key, route_url):
 
     return True
 
-
 # --- Main Application Loop ---
 if __name__ == "__main__":
     while True:
@@ -178,3 +176,4 @@ if __name__ == "__main__":
             break
 
     console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
