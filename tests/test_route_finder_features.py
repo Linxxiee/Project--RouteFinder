@@ -14,7 +14,7 @@ class TestRouteFinderIntegration(unittest.TestCase):
         }
         self.rf = RouteFinder(self.graph)
 
-        # Temporary file for load_new_data
+        # Temporary JSON file for load_new_data
         self.temp_file = "temp_graph.json"
         new_data = {
             "D": {"E": {"distance": 6, "time": 2}},
