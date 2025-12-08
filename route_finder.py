@@ -153,17 +153,18 @@ def _process_route_finder_logic(key, route_url):
 
 
 # --- Main Application Loop ---
-while True:
-    console.print("\n" + "=" * 45)
-    console.print(
-        Panel.fit(
-            "[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
-            title="Graphhopper",
-            subtitle="Type 'q' to quit",
+if __name__ == "__main__":
+    while True:
+        console.print("\n" + "=" * 45)
+        console.print(
+            Panel.fit(
+                "[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
+                title="Graphhopper",
+                subtitle="Type 'q' to quit",
+            )
         )
-    )
 
-    if not _process_route_finder_logic(key, route_url):
-        break
+        if not _process_route_finder_logic(key, route_url):
+            break
 
-console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+    console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
