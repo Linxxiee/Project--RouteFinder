@@ -1,86 +1,64 @@
+import unittest
+from route_finder import RouteFinder, _process_route_finder_logic
 import json
-import heapq
 import os
 
 
-def _process_route_finder_logic(route_finder_instance, start, end, metric):
-    """
-    Thin wrapper used for integration testing.
-    """
-    return route_finder_instance.find_route(start, end, metric)
-
-
-class RouteFinder:
-    def __init__(self, graph=None):
-        """
-        graph is expected in this format:
-        {
-            'A': {'B': {'distance': 10, 'time': 5}},
-            ...
+class TestRouteFinderIntegration(unittest.TestCase):
+    def setUp(self):
+        # Sample graph
+        self.graph = {
+            "A": {"B": {"distance": 5, "time": 2}},
+            "B": {"C": {"distance": 7, "time": 3}},
+            "C": {"D": {"distance": 4, "time": 1}},
         }
-        """
-        self.graph = graph if graph else {}
+        self.rf = RouteFinder(self.graph)
 
-    # -------------------------------------------------------------
-    # Core Shortest Path Function (Dijkstra)
-    # -------------------------------------------------------------
-    def find_route(self, start, end, metric="distance"):
-        if metric not in ["distance", "time"]:
-            raise ValueError("Unsupported metric. Use 'distance' or 'time'.")
+        # Temporary file for load_new_data
+        self.temp_file = "temp_graph.json"
+        new_data = {
+            "D": {"E": {"distance": 6, "time": 2}},
+            "E": {"F": {"distance": 3, "time": 1}}
+        }
+        with open(self.temp_file, "w") as f:
+            json.dump(new_data, f)
 
-        # If start or end not in graph → unreachable
-        if start not in self.graph or end not in self.graph:
-            return {"total_distance": float("inf"), "path": []}
+    def tearDown(self):
+        if os.path.exists(self.temp_file):
+            os.remove(self.temp_file)
 
-        # Special case: start == end
-        if start == end:
-            return {"total_distance": 0, "path": [start]}
+    def test_basic_route_distance(self):
+        result = _process_route_finder_logic(self.rf, "A", "C", "distance")
+        self.assertEqual(result["path"], ["A", "B", "C"])
+        self.assertEqual(result["total_distance"], 12)
 
-        # Dijkstra’s Priority Queue
-        pq = [(0, start, [start])]
-        visited = set()
+    def test_basic_route_time(self):
+        result = _process_route_finder_logic(self.rf, "A", "C", "time")
+        self.assertEqual(result["path"], ["A", "B", "C"])
+        self.assertEqual(result["total_distance"], 5)
 
-        while pq:
-            cost, node, path = heapq.heappop(pq)
+    def test_start_equals_end(self):
+        result = _process_route_finder_logic(self.rf, "A", "A", "distance")
+        self.assertEqual(result["path"], ["A"])
+        self.assertEqual(result["total_distance"], 0)
 
-            if node in visited:
-                continue
-            visited.add(node)
+    def test_no_connection(self):
+        result = _process_route_finder_logic(self.rf, "A", "Z", "distance")
+        self.assertEqual(result["path"], [])
+        self.assertEqual(result["total_distance"], float("inf"))
 
-            # Reached destination
-            if node == end:
-                return {"total_distance": cost, "path": path}
+    def test_load_new_data(self):
+        success = self.rf.load_new_data(self.temp_file)
+        self.assertTrue(success)
+        self.assertIn("D", self.rf.graph)
+        self.assertIn("E", self.rf.graph)
+        self.assertIn("F", self.rf.graph)
 
-            # Expand neighbors
-            for neighbor, info in self.graph.get(node, {}).items():
-                weight = info.get(metric, float("inf"))
-                if neighbor not in visited:
-                    heapq.heappush(pq, (cost + weight, neighbor, path + [neighbor]))
+        # Verify new route
+        result = self.rf.find_route("C", "F", "distance")
+        self.assertEqual(result["path"], ["C", "D", "E", "F"])
+        self.assertEqual(result["total_distance"], 13)
 
-        # No connection
-        return {"total_distance": float("inf"), "path": []}
 
-    # -------------------------------------------------------------
-    # Feature 1: Load new nodes and edges dynamically
-    # -------------------------------------------------------------
-    def load_new_data(self, filepath):
-        """Loads a JSON file and merges nodes/edges into the current graph."""
-        if not os.path.exists(filepath):
-            return False
-
-        try:
-            with open(filepath, "r") as file:
-                new_data = json.load(file)
-
-            for node, edges in new_data.items():
-                if node not in self.graph:
-                    self.graph[node] = {}
-
-                # Merge edges
-                for neighbor, attrs in edges.items():
-                    self.graph[node][neighbor] = attrs
-
-            return True
-
-        except Exception:
-            return False
+if __name__ == "__main__":
+    unittest.main()
