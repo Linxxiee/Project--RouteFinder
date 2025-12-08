@@ -57,30 +57,23 @@ def geocoding(location, key):
 # --- Main Loop ---
 while True:
     console.print("\n" + "=" * 45)
-    console.print(Panel.fit("[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
-                            title="Graphhopper", subtitle="Type 'q' to quit"))
-    
+    console.print(Panel.fit("[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]", title="Graphhopper", subtitle="Type 'q' to quit"))
     profile = ["car", "bike", "foot"]
     vehicle = console.input("[bold]Enter a vehicle profile: [/]").strip().lower()
-    
     if vehicle == "quit" or vehicle == "q":
         break
     elif vehicle not in profile:
         console.print("[yellow]No valid profile entered. Defaulting to 'car'[/]")
         vehicle = "car"
-
     loc1 = console.input("[bold]Starting Location: [/]").strip()
     if loc1 == "quit" or loc1 == "q":
         break
     orig = geocoding(loc1, key)
-
     loc2 = console.input("[bold]Destination: [/]").strip()
     if loc2 == "quit" or loc2 == "q":
         break
     dest = geocoding(loc2, key)
-    
     console.print("=" * 50)
-
     if orig[0] == 200 and dest[0] == 200:
         route_params = {
             "key": key, "vehicle": vehicle,
@@ -88,17 +81,13 @@ while True:
             "instructions": True
         }
         paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
-
         try:
             paths_response = requests.get(paths_url)
             paths_status = paths_response.status_code
             paths_data = paths_response.json()
-
             console.print(f"[dim]Routing API Status: {paths_status}[/]")
-            
             if paths_status == 200 and paths_data.get("paths"):
                 path_details = paths_data["paths"][0]
-                
                 # --- Create Summary Panel ---
                 km = path_details["distance"] / 1000
                 miles = km * 0.621371
@@ -106,40 +95,33 @@ while True:
                 hr = int(time_ms / (1000 * 60 * 60))
                 min = int((time_ms / (1000 * 60)) % 60)
                 sec = int((time_ms / 1000) % 60)
-
                 summary_text = Text()
                 summary_text.append(f"From: {orig[3]}\n", style="bold green")
                 summary_text.append(f"To:   {dest[3]}\n", style="bold red")
                 summary_text.append(f"\nDistance: {miles:.1f} miles / {km:.1f} km\n", style="cyan")
                 summary_text.append(f"Duration: {hr:02d}:{min:02d}:{sec:02d}", style="cyan")
-                
                 console.print(Panel(summary_text, title="Trip Summary", padding=1))
-
                 # --- Create Directions Table ---
                 table = Table(title="Turn-by-Turn Directions")
                 table.add_column("Instruction", style="bold white", no_wrap=False, ratio=70)
                 table.add_column("Distance (km)", style="magenta", ratio=15)
                 table.add_column("Distance (mi)", style="magenta", ratio=15)
-
                 for instruction in path_details["instructions"]:
                     path = instruction["text"]
                     dist_km = instruction["distance"] / 1000
                     dist_miles = dist_km * 0.621371
                     table.add_row(path, f"{dist_km:.2f}", f"{dist_miles:.2f}")
-                
                 console.print(table)
-
             else:
                 console.print(f"[bold red]Error: {paths_data.get('message', 'Could not find a route')}[/]")
-        
         except requests.exceptions.RequestException as e:
             console.print(f"[bold red]Network error during routing: {e}[/]")
-
     else:
         console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
 
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
 
 
