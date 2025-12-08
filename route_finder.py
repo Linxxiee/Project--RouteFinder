@@ -14,9 +14,9 @@ key = "27b08998-f69b-4d43-a3a6-3b4fda277646" # Replace with your API key
 def geocoding(location, key):
   while location == "":
     location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
-  geocode_url = "https://graphhopper.com/api/1/geocode?"
-  params = {"q": location, "limit": "1", "key": key}
-  url = geocode_url + urllib.parse.urlencode(params)
+    geocode_url = "https://graphhopper.com/api/1/geocode?"
+    params = {"q": location, "limit": "1", "key": key}
+    url = geocode_url + urllib.parse.urlencode(params)
 
 try:
   replydata = requests.get(url)
@@ -42,48 +42,46 @@ try:
     console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
     return json_status, lat, lng, new_loc
 
-  else:
-    lat = "null"
-    lng = "null"
-    new_loc = location
-    msg = json_data.get('message', 'Unknown error')
-    console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
-    return json_status, lat, lng, new_loc
+else:
+  lat = "null"
+  lng = "null"
+  new_loc = location
+  msg = json_data.get('message', 'Unknown error')
+  console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
+  return json_status, lat, lng, new_loc
             
 except requests.exceptions.RequestException as e:
-        console.print(f"[bold red]Network error during geocoding: {e}[/]")
-        return "error", "null", "null", location
-
+console.print(f"[bold red]Network error during geocoding: {e}[/]")
+return "error", "null", "null", location
 
 def _process_route_finder_logic(key, route_url):
-    """Encapsulates the complex routing logic to satisfy C901."""
-    profile = ["car", "bike", "foot"]
-    vehicle = console.input("[bold]Enter a vehicle profile: [/]").strip().lower()
-    if vehicle == "quit" or vehicle == "q":
-        return False
-    elif vehicle not in profile:
-        console.print("[yellow]No valid profile entered. Defaulting to 'car'[/]")
-        vehicle = "car"
+  """Encapsulates the complex routing logic to satisfy C901."""
+  profile = ["car", "bike", "foot"]
+  vehicle = console.input("[bold]Enter a vehicle profile: [/]").strip().lower()
+  if vehicle == "quit" or vehicle == "q":
+    return False
+  elif vehicle not in profile:
+    console.print("[yellow]No valid profile entered. Defaulting to 'car'[/]")
+    vehicle = "car"
     
-    loc1 = console.input("[bold]Starting Location: [/]").strip()
-    if loc1 == "quit" or loc1 == "q":
-        return False
-    orig = geocoding(loc1, key)
-    
-    loc2 = console.input("[bold]Destination: [/]").strip()
-    if loc2 == "quit" or loc2 == "q":
-        return False
-    dest = geocoding(loc2, key)
-    
-    console.print("=" * 50)
-    
-    if orig[0] == 200 and dest[0] == 200:
-        route_params = {
-            "key": key, "vehicle": vehicle,
-            "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
-            "instructions": True
-        }
-        paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
+loc1 = console.input("[bold]Starting Location: [/]").strip()
+if loc1 == "quit" or loc1 == "q":
+  return False
+  orig = geocoding(loc1, key)
+  loc2 = console.input("[bold]Destination: [/]").strip()
+  
+if loc2 == "quit" or loc2 == "q":
+  return False
+  dest = geocoding(loc2, key)
+  console.print("=" * 50)
+  
+if orig[0] == 200 and dest[0] == 200:
+  route_params = {
+    "key": key, "vehicle": vehicle,
+    "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
+    "instructions": True
+     }
+  paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
         try:
             paths_response = requests.get(paths_url)
             paths_status = paths_response.status_code
@@ -133,6 +131,7 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
 
 
