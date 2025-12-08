@@ -23,32 +23,32 @@ try:
   json_status = replydata.status_code
   json_data = replydata.json()
 
-if json_status == 200 and len(json_data.get("hits", [])) != 0:
-  hit = json_data["hits"][0]
-  lat = hit["point"]["lat"]
-  lng = hit["point"]["lng"]
-  name = hit.get("name", "N/A")
-  value = hit.get("osm_value", "N/A")
-  country = hit.get("country", "")
-  state = hit.get("state", "")
+  if json_status == 200 and len(json_data.get("hits", [])) != 0:
+    hit = json_data["hits"][0]
+    lat = hit["point"]["lat"]
+    lng = hit["point"]["lng"]
+    name = hit.get("name", "N/A")
+    value = hit.get("osm_value", "N/A")
+    country = hit.get("country", "")
+    state = hit.get("state", "")
   
-  if name:
-    ew_loc = name
-    if state: new_loc += f", {state}"
-      if country: new_loc += f", {country}"
-  else:
-    new_loc = location
+    if name:
+      ew_loc = name
+      if state: new_loc += f", {state}"
+        if country: new_loc += f", {country}"
+    else:
+      new_loc = location
     
     console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
     return json_status, lat, lng, new_loc
 
-else:
-  lat = "null"
-  lng = "null"
-  new_loc = location
-  msg = json_data.get('message', 'Unknown error')
-  console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
-  return json_status, lat, lng, new_loc
+  else:
+    lat = "null"
+    lng = "null"
+    new_loc = location
+    msg = json_data.get('message', 'Unknown error')
+    console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
+    return json_status, lat, lng, new_loc
             
 except requests.exceptions.RequestException as e:
         console.print(f"[bold red]Network error during geocoding: {e}[/]")
@@ -133,6 +133,7 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
 
 
