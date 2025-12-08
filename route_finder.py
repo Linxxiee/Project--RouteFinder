@@ -7,10 +7,8 @@ from rich.text import Text
 
 # --- Initialize Rich Console ---
 console = Console()
-
 route_url = "https://graphhopper.com/api/1/route?"
 key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
-
 
 def geocoding(location, key):
     """
@@ -29,8 +27,7 @@ def geocoding(location, key):
         # 2. API Call and Data Processing
         replydata = requests.get(url)
         json_status = replydata.status_code
-        json_data = replydata.json()
-        
+        json_data = replydata.json()  
         if json_status == 200 and len(json_data.get("hits", [])) != 0:
             # Success
             hit = json_data["hits"][0]
@@ -40,7 +37,7 @@ def geocoding(location, key):
             value = hit.get("osm_value", "N/A")
             country = hit.get("country", "")
             state = hit.get("state", "")
-
+            
             # Formatting the location name
             if name:
                 new_loc = name
@@ -50,10 +47,9 @@ def geocoding(location, key):
                     new_loc += f", {country}"
             else:
                 new_loc = location
-            
+          
             console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
             return json_status, lat, lng, new_loc
-
         else:
             # API returned a status other than 200 or no hits
             lat = "null"
@@ -67,7 +63,6 @@ def geocoding(location, key):
         # Network or other request error
         console.print(f"[bold red]Network error during geocoding: {e}[/]")
         return "error", "null", "null", location
-
 
 def _process_route_finder_logic(key, route_url):
     """
@@ -94,8 +89,7 @@ def _process_route_finder_logic(key, route_url):
     loc2 = console.input("[bold]Destination: [/]").strip()
     if loc2 == "quit" or loc2 == "q":
         return False
-    dest = geocoding(loc2, key)
-    
+    dest = geocoding(loc2, key) 
     console.print("=" * 50)
     
     # Route Finding Logic
@@ -105,8 +99,7 @@ def _process_route_finder_logic(key, route_url):
             "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
             "instructions": True
         }
-        paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
-        
+        paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True) 
         try:
             paths_response = requests.get(paths_url)
             paths_status = paths_response.status_code
@@ -129,14 +122,12 @@ def _process_route_finder_logic(key, route_url):
                 summary_text.append(f"To:    {dest[3]}\n", style="bold red")
                 summary_text.append(f"\nDistance: {miles:.1f} miles / {km:.1f} km\n", style="cyan")
                 summary_text.append(f"Duration: {hr:02d}:{min_val:02d}:{sec:02d}", style="cyan")
-                console.print(Panel(summary_text, title="Trip Summary", padding=1))
-                
+                console.print(Panel(summary_text, title="Trip Summary", padding=1))   
                 # --- Create Directions Table ---
                 table = Table(title="Turn-by-Turn Directions")
                 table.add_column("Instruction", style="bold white", no_wrap=False, ratio=70)
                 table.add_column("Distance (km)", style="magenta", ratio=15)
-                table.add_column("Distance (mi)", style="magenta", ratio=15)
-                
+                table.add_column("Distance (mi)", style="magenta", ratio=15)   
                 for instruction in path_details["instructions"]:
                     path = instruction["text"]
                     dist_km = instruction["distance"] / 1000
@@ -152,7 +143,6 @@ def _process_route_finder_logic(key, route_url):
         console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
     
     return True  # Continue the loop
-
 
 # --- Main Application Loop (Simplified) ---
 while True:
