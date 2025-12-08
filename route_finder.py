@@ -35,7 +35,7 @@ try:
     if name:
       ew_loc = name
       if state: new_loc += f", {state}"
-        if country: new_loc += f", {country}"
+      if country: new_loc += f", {country}"
     else:
       new_loc = location
     
@@ -133,6 +133,7 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
 
 
