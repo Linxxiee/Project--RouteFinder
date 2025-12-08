@@ -51,7 +51,7 @@ class IntegrationTests(unittest.TestCase):
         # Simulate user input: vehicle='car', start='New York', end='Boston'
         with patch('builtins.input', side_effect=['car', 'New York', 'Boston']):
             # The key and url here should ideally match the global variables in route_finder.py
-            result = _process_route_finder_logic("fake_key", "fake_url?")  # E261 FIX
+            result = _process_route_finder_logic("fake_key", "fake_url?")    # E261 FIX
 
             self.assertTrue(result, "The function should indicate success (True)")
             self.assertEqual(mock_get.call_count, 3, "Expected 3 API calls.")
@@ -59,6 +59,6 @@ class IntegrationTests(unittest.TestCase):
             # Check console output
             output = self.console_output.getvalue()
             # 10000m = 6.2 miles / 10.0 km
-            self.assertIn("Distance: 6.2 miles / 10.0 km", output)  # E261 FIX
+            self.assertIn("Distance: 6.2 miles / 10.0 km", output)    # E261 FIX
             self.assertIn("Turn-by-Turn Directions", output)
             self.assertIn("Duration: 00:10:00", output)  # 600,000ms = 10 minutes
