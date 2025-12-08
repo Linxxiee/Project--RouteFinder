@@ -12,8 +12,8 @@ route_url = "https://graphhopper.com/api/1/route?"
 key = "27b08998-f69b-4d43-a3a6-3b4fda277646" # Replace with your API key
 
 def geocoding(location, key):
-    while location == "":
-        location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
+    while location == "":
+        location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
     geocode_url = "https://graphhopper.com/api/1/geocode?"
     params = {"q": location, "limit": "1", "key": key}
     url = geocode_url + urllib.parse.urlencode(params)
@@ -133,4 +133,5 @@ while True:
         break
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
+
 
