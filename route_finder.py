@@ -1,6 +1,5 @@
 import requests
 import urllib.parse
-import sys
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -139,5 +138,6 @@ while True:
 
     else:
         console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
+
 
 console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
