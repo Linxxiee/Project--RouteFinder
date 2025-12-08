@@ -1,7 +1,7 @@
 # File: .github/workflows/ci.yml
 name: Python CI/CD Pipeline - RouteFinder
 
-# Triggers the workflow on push or pull request events to the main branch
+# Trigger workflow on push or pull request to main branch
 on:
   push:
     branches: [ main ]
@@ -15,41 +15,55 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
-    - name: Install Dependencies
-      run: pip install flake8
+
+    - name: Install Linting Dependencies
+      run: |
+        pip install flake8
+
     - name: Run Linting with flake8
       run: flake8 . --count --show-source --max-complexity=10 --max-line-length=120 --statistics
 
-  # 2. Unit Testing (Depends on Linting passing)
+  # 2. Unit Testing
   unit_test:
     needs: lint
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
+
+    - name: Install Project Dependencies
+      run: |
+        pip install -r requirements.txt
+
     - name: Run Unit Tests
-      # Assuming unit tests are in a 'tests' directory and use the unittest framework
       run: python -m unittest discover tests
 
-  # 3. Integration Testing (Depends on Unit Tests passing)
+  # 3. Integration Testing
   integration_test:
     needs: unit_test
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
-    - name: Run Integration Test for Dynamic Data Load
-      # This test ensures the new feature 1 (dynamic node loading) works with the data file
-      run: python tests/integration_test_data_load.py
+
+    - name: Install Project Dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run Integration Tests
+      run: python -m unittest discover tests
