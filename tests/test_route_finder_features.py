@@ -3,6 +3,13 @@ import heapq
 import os
 
 
+def _process_route_finder_logic(route_finder_instance, start, end, metric):
+    """
+    Thin wrapper used for integration testing.
+    """
+    return route_finder_instance.find_route(start, end, metric)
+
+
 class RouteFinder:
     def __init__(self, graph=None):
         """
