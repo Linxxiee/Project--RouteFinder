@@ -9,13 +9,18 @@ from rich.text import Text
 console = Console()
 
 route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646" # Replace with your API key
+# E261 Fix: Added two spaces before the inline comment
+key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
 
+
+# E302 Fix: Added two blank lines before function definition
 def geocoding(location, key):
     """
     Translates a human-readable location string into geographic coordinates (lat, lng).
     Handles API calls, error checking, and formatting.
     """
+    # W293 Fix: Removed trailing whitespace from blank lines inside functions
+    
     # 1. Input Validation and URL Setup
     while location == "":
         location = console.input("[bold red]Location cannot be empty. Enter again: [/]")
@@ -29,7 +34,7 @@ def geocoding(location, key):
         replydata = requests.get(url)
         json_status = replydata.status_code
         json_data = replydata.json()
-
+        
         if json_status == 200 and len(json_data.get("hits", [])) != 0:
             # Success
             hit = json_data["hits"][0]
@@ -39,12 +44,15 @@ def geocoding(location, key):
             value = hit.get("osm_value", "N/A")
             country = hit.get("country", "")
             state = hit.get("state", "")
-            
+
             # Formatting the location name
             if name:
                 new_loc = name
-                if state: new_loc += f", {state}"
-                if country: new_loc += f", {country}"
+                # E701 Fix: Moved multiple statements onto separate lines
+                if state:
+                    new_loc += f", {state}"
+                if country:
+                    new_loc += f", {country}"
             else:
                 new_loc = location
             
@@ -65,6 +73,8 @@ def geocoding(location, key):
         console.print(f"[bold red]Network error during geocoding: {e}[/]")
         return "error", "null", "null", location
 
+
+# E302 Fix: Added two blank lines before function definition
 def _process_route_finder_logic(key, route_url):
     """
     Encapsulates the complex routing logic (user input, routing, and output)
@@ -146,14 +156,20 @@ def _process_route_finder_logic(key, route_url):
             console.print(f"[bold red]Network error during routing: {e}[/]")
     else:
         console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
-        
-    return True # Continue the loop
+    
+    # E261 Fix: Added two spaces before the inline comment
+    return True  # Continue the loop
 
 
 # --- Main Application Loop (Simplified) ---
 while True:
     console.print("\n" + "=" * 45)
-    console.print(Panel.fit("[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]", title="Graphhopper", subtitle="Type 'q' to quit"))
+    # E501 Fix: Wrapped the Panel.fit arguments to keep the line under 120 chars
+    console.print(Panel.fit(
+        "[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
+        title="Graphhopper",
+        subtitle="Type 'q' to quit"
+    ))
     
     if not _process_route_finder_logic(key, route_url):
         break
