@@ -7,15 +7,15 @@ from rich.text import Text
 
 # --- Initialize Rich Console ---
 console = Console()
-# NOTE: The provided key is a placeholder. Replace with your actual key if running live.
 route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646"
+key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
 
 
 def geocoding(location, key):
     """
     Translates a human-readable location string into geographic coordinates (lat, lng).
     Handles API calls, error checking, and formatting.
+
     Returns: (status_code, lat, lng, new_loc)
     """
     while location == "":
@@ -160,7 +160,8 @@ def _process_route_finder_logic(key, route_url):
 
     return True
 
-# --- Main Application Loop ---
+
+# E305 FIX: Added a second blank line above the main block
 if __name__ == "__main__":
     while True:
         console.print("\n" + "=" * 45)
@@ -176,4 +177,4 @@ if __name__ == "__main__":
             break
 
     console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
-
+# W391 FIX: Ensures only a single blank line follows this comment
