@@ -1,64 +1,62 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from route_finder import _process_route_finder_logic
-from rich.console import Console
-from io import StringIO
-
-# --- Simulated API Response Data ---
-
-MOCK_GEOCODE_SUCCESS = {
-    "hits": [{
-        "point": {"lat": 40.7128, "lng": -74.0060},
-        "name": "New York City",
-        "country": "USA",
-        "osm_value": "place"
-    }]
-}
-
-MOCK_ROUTE_SUCCESS = {
-    "paths": [{
-        "distance": 10000,  # 10 km
-        "time": 600000,   # 10 minutes
-        "instructions": [
-            {"text": "Start driving", "distance": 1000},
-            {"text": "Turn right", "distance": 9000}
-        ]
-    }]
-}
+from route_finder import RouteFinder, _process_route_finder_logic
+import json
+import os
 
 
-class IntegrationTests(unittest.TestCase):
-
+class TestRouteFinderIntegration(unittest.TestCase):
     def setUp(self):
-        self.console_output = StringIO()
-        # Ensure the mock console uses the StringIO buffer
-        self.mock_console = Console(file=self.console_output)
+        self.graph = {
+            "A": {"B": {"distance": 5, "time": 2}},
+            "B": {"C": {"distance": 7, "time": 3}},
+            "C": {"D": {"distance": 4, "time": 1}},
+        }
+        self.rf = RouteFinder(self.graph)
 
-        # Patch the console used in route_finder.py
-        patcher = patch('route_finder.console', self.mock_console)
-        self.addCleanup(patcher.stop)
-        patcher.start()
+        self.temp_file = "temp_graph.json"
+        new_data = {
+            "D": {"E": {"distance": 6, "time": 2}},
+            "E": {"F": {"distance": 3, "time": 1}},
+        }
+        with open(self.temp_file, "w") as f:
+            json.dump(new_data, f)
 
-    @patch('requests.get')
-    def test_full_successful_route_integration(self, mock_get):
-        # Program the mock to return geocode, geocode, then route success
-        mock_get.side_effect = [
-            MagicMock(status_code=200, json=lambda: MOCK_GEOCODE_SUCCESS),
-            MagicMock(status_code=200, json=lambda: MOCK_GEOCODE_SUCCESS),
-            MagicMock(status_code=200, json=lambda: MOCK_ROUTE_SUCCESS),
-        ]
+    def tearDown(self):
+        if os.path.exists(self.temp_file):
+            os.remove(self.temp_file)
 
-        # Simulate user input: vehicle='car', start='New York', end='Boston'
-        with patch('builtins.input', side_effect=['car', 'New York', 'Boston']):
-            # The key and url here should ideally match the global variables in route_finder.py
-            result = _process_route_finder_logic("fake_key", "fake_url?")    # E261 FIX
+    def test_basic_route_distance(self):
+        result = _process_route_finder_logic(self.rf, "A", "C", "distance")
+        self.assertEqual(result["path"], ["A", "B", "C"])
+        self.assertEqual(result["total_distance"], 12)
 
-            self.assertTrue(result, "The function should indicate success (True)")
-            self.assertEqual(mock_get.call_count, 3, "Expected 3 API calls.")
+    def test_basic_route_time(self):
+        result = _process_route_finder_logic(self.rf, "A", "C", "time")
+        self.assertEqual(result["path"], ["A", "B", "C"])
+        self.assertEqual(result["total_distance"], 5)
 
-            # Check console output
-            output = self.console_output.getvalue()
-            # 10000m = 6.2 miles / 10.0 km
-            self.assertIn("Distance: 6.2 miles / 10.0 km", output)    # E261 FIX
-            self.assertIn("Turn-by-Turn Directions", output)
-            self.assertIn("Duration: 00:10:00", output)  # 600,000ms = 10 minutes
+    def test_start_equals_end(self):
+        result = _process_route_finder_logic(self.rf, "A", "A", "distance")
+        self.assertEqual(result["path"], ["A"])
+        self.assertEqual(result["total_distance"], 0)
+
+    def test_no_connection(self):
+        result = _process_route_finder_logic(self.rf, "A", "Z", "distance")
+        self.assertEqual(result["path"], [])
+        self.assertEqual(result["total_distance"], float("inf"))
+
+    def test_load_new_data(self):
+        success = self.rf.load_new_data(self.temp_file)
+        self.assertTrue(success)
+
+        self.assertIn("D", self.rf.graph)
+        self.assertIn("E", self.rf.graph)
+        self.assertIn("F", self.rf.graph)
+
+        result = self.rf.find_route("C", "F", "distance")
+        self.assertEqual(result["path"], ["C", "D", "E", "F"])
+        self.assertEqual(result["total_distance"], 13)
+
+
+if __name__ == "__main__":
+    unittest.main()
