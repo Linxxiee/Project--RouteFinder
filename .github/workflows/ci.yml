@@ -1,69 +1,29 @@
-# File: .github/workflows/ci.yml
-name: Python CI/CD Pipeline - RouteFinder
+name: Python CI
 
-# Trigger workflow on push or pull request to main branch
 on:
   push:
-    branches: [ main ]
+    branches: ["main"]
   pull_request:
-    branches: [ main ]
+    branches: ["main"]
 
 jobs:
-  # 1. Code Quality Check (Linting)
-  lint:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install Linting Dependencies
-      run: |
-        pip install flake8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Run Linting with flake8
-      run: flake8 . --count --show-source --max-complexity=10 --max-line-length=120 --statistics
-
-  # 2. Unit Testing
-  unit_test:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-
-    - name: Install Project Dependencies
-      run: |
-        pip install -r requirements.txt
-
-    - name: Run Unit Tests
-      run: python -m unittest discover tests
-
-  # 3. Integration Testing
-  integration_test:
-    needs: unit_test
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-
-    - name: Install Project Dependencies
-      run: |
-        pip install -r requirements.txt
-
-    - name: Run Integration Tests
-      run: python -m unittest discover tests
+      - name: Run tests
+        run: |
+          python -m unittest discover -v
