@@ -1,180 +1,116 @@
-import requests
-import urllib.parse
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-
-# --- Initialize Rich Console ---
-console = Console()
-route_url = "https://graphhopper.com/api/1/route?"
-key = "27b08998-f69b-4d43-a3a6-3b4fda277646"  # Replace with your API key
+# route_finder.py
+import json
+import heapq
+from typing import Dict, Any, Tuple
 
 
-def geocoding(location, key):
+class RouteFinder:
     """
-    Translates a human-readable location string into geographic coordinates (lat, lng).
-    Handles API calls, error checking, and formatting.
-
-    Returns: (status_code, lat, lng, new_loc)
+    Lightweight graph route finder supporting 'distance' and 'time' weights.
+    Graph format:
+    {
+      "A": {"B": {"distance": 5, "time": 2}, "C": {...}},
+      "B": {"C": {"distance": 7, "time": 3}},
+      ...
+    }
     """
-    while location == "":
-        location = console.input("[bold red]Location cannot be empty. Enter again: [/]").strip()
 
-    geocode_url = "https://graphhopper.com/api/1/geocode?"
-    params = {"q": location, "limit": "1", "key": key}
-    url = geocode_url + urllib.parse.urlencode(params)
+    def __init__(self, graph: Dict[str, Dict[str, Dict[str, float]]] = None):
+        # Ensure we have a shallow copy so tests that mutate graph won't surprise callers
+        self.graph = dict(graph) if graph else {}
 
-    try:
-        replydata = requests.get(url)
-        json_status = replydata.status_code
-        json_data = replydata.json()
+    def load_new_data(self, file_path: str) -> bool:
+        """
+        Load new graph data from a JSON file and merge into self.graph.
 
-        if json_status == 200 and len(json_data.get("hits", [])) != 0:
-            hit = json_data["hits"][0]
-            lat = hit["point"]["lat"]
-            lng = hit["point"]["lng"]
-            name = hit.get("name", "N/A")
-            value = hit.get("osm_value", "N/A")
-            country = hit.get("country", "")
-            state = hit.get("state", "")
-
-            # Format location name nicely
-            if name:
-                new_loc = name
-                if state:
-                    new_loc += f", {state}"
-                if country:
-                    new_loc += f", {country}"
-            else:
-                new_loc = location
-
-            console.print(f"[dim]Geocoding success for {new_loc} (Type: {value})[/dim]")
-            return json_status, lat, lng, new_loc
-
-        lat = "null"
-        lng = "null"
-        new_loc = location
-        msg = json_data.get("message", "Unknown error")
-        console.print(f"[bold red]Geocode API status: {json_status}\nError: {msg}[/]")
-        return json_status, lat, lng, new_loc
-
-    except requests.exceptions.RequestException as e:
-        console.print(f"[bold red]Network error during geocoding: {e}[/]")
-        return "error", "null", "null", location
-
-
-def _process_route_finder_logic(key, route_url):
-    """
-    Encapsulates the complex routing logic (user input, routing, and output)
-    to satisfy the complexity check (C901).
-    """
-    profile = ["car", "bike", "foot"]
-
-    vehicle = console.input("[bold]Enter a vehicle profile (car, bike, foot): [/]").strip().lower()
-    if vehicle in ("quit", "q"):
-        return False
-    if vehicle not in profile:
-        console.print("[yellow]No valid profile entered. Defaulting to 'car'[/]")
-        vehicle = "car"
-
-    loc1 = console.input("[bold]Starting Location: [/]").strip()
-    if loc1 in ("quit", "q"):
-        return False
-    orig = geocoding(loc1, key)
-
-    loc2 = console.input("[bold]Destination: [/]").strip()
-    if loc2 in ("quit", "q"):
-        return False
-    dest = geocoding(loc2, key)
-
-    console.print("=" * 50)
-
-    # Proceed only if both geocoding calls succeeded (status_code 200)
-    if orig[0] == 200 and dest[0] == 200:
-        route_params = {
-            "key": key,
-            "vehicle": vehicle,
-            # Point requires coordinates in "lat,lng" format
-            "point": [f"{orig[1]},{orig[2]}", f"{dest[1]},{dest[2]}"],
-            "instructions": True,
-        }
-
-        # Use doseq=True for repeating parameters like 'point'
-        paths_url = route_url + urllib.parse.urlencode(route_params, doseq=True)
-
+        Guarantees:
+        - Adds new nodes and edges.
+        - Ensures that every neighbor referenced exists as a key in self.graph
+          (with an empty dict if no outgoing edges were provided). This matches
+          tests that expect 'F' to be present as a key after loading neighbors.
+        """
         try:
-            paths_response = requests.get(paths_url)
-            paths_status = paths_response.status_code
-            paths_data = paths_response.json()
-            console.print(f"[dim]Routing API Status: {paths_status}[/]")
+            with open(file_path, "r", encoding="utf-8") as f:
+                new_data = json.load(f)
 
-            if paths_status == 200 and paths_data.get("paths"):
-                path_details = paths_data["paths"][0]
+            # Validate format is mapping-like
+            if not isinstance(new_data, dict):
+                return False
 
-                # 1. Calculate Summary Metrics
-                km = path_details["distance"] / 1000
-                miles = km * 0.621371
-                time_ms = path_details["time"]
-                hr = int(time_ms / (1000 * 60 * 60))
-                min_val = int((time_ms / (1000 * 60)) % 60)
-                sec = int((time_ms / 1000) % 60)
+            for node, edges in new_data.items():
+                if node not in self.graph:
+                    self.graph[node] = {}
 
-                # 2. Print Summary Panel
-                summary_text = Text()
-                summary_text.append(f"From: {orig[3]}\n", style="bold green")
-                summary_text.append(f"To:    {dest[3]}\n", style="bold red")
-                summary_text.append(
-                    f"\nDistance: {miles:.1f} miles / {km:.1f} km\n", style="cyan"
-                )
-                summary_text.append(
-                    f"Duration: {hr:02d}:{min_val:02d}:{sec:02d}", style="cyan"
-                )
+                # Merge/overwrite edges for the node
+                if isinstance(edges, dict):
+                    self.graph[node].update(edges)
+                else:
+                    # If malformed, skip this node
+                    continue
 
-                console.print(
-                    Panel(summary_text, title="Trip Summary", padding=1)
-                )
+                # Ensure every neighbor exists as a key (possibly with empty dict)
+                for neighbor in edges.keys():
+                    if neighbor not in self.graph:
+                        self.graph[neighbor] = {}
 
-                # 3. Print Directions Table
-                table = Table(title="Turn-by-Turn Directions")
-                table.add_column("Instruction", style="bold white", no_wrap=False, ratio=70)
-                table.add_column("Distance (km)", style="magenta", ratio=15)
-                table.add_column("Distance (mi)", style="magenta", ratio=15)
+            return True
+        except Exception:
+            return False
 
-                for instruction in path_details["instructions"]:
-                    path = instruction["text"]
-                    dist_km = instruction["distance"] / 1000
-                    dist_miles = dist_km * 0.621371
-                    table.add_row(path, f"{dist_km:.2f}", f"{dist_miles:.2f}")
-
-                console.print(table)
-            else:
-                msg = paths_data.get("message", "Could not find a route")
-                console.print(f"[bold red]Error: {msg}[/]")
-
-        except requests.exceptions.RequestException as e:
-            console.print(f"[bold red]Network error during routing: {e}[/]")
-
-    else:
-        console.print("[bold red]Could not get directions. Please check the locations entered.[/]")
-
-    return True
+    def find_route(self, start: str, end: str, mode: str = "distance") -> dict:
+        """
+        Public wrapper that calls the shared algorithm.
+        """
+        return _process_route_finder_logic(self, start, end, mode)
 
 
-# E305 FIX: Added a second blank line above the main block
-if __name__ == "__main__":
-    while True:
-        console.print("\n" + "=" * 45)
-        console.print(
-            Panel.fit(
-                "[bold cyan]Route Finder[/]\nAvailable profiles: [yellow]car, bike, foot[/]",
-                title="Graphhopper",
-                subtitle="Type 'q' to quit",
-            )
-        )
+def _process_route_finder_logic(route_finder: RouteFinder, start: str, end: str, mode: str = "distance") -> dict:
+    """
+    Dijkstra's algorithm over the directed weighted graph stored in route_finder.graph.
 
-        if not _process_route_finder_logic(key, route_url):
-            break
+    Returns:
+        {"path": [...], "total_distance": cost}
+        - If unreachable: path=[], total_distance=float('inf')
+        - If start == end: path=[start], total_distance=0
+    Note: The key name "total_distance" is kept because your tests assert this key.
+    """
+    graph = route_finder.graph
 
-    console.print("\n[bold cyan]Application terminated. Goodbye![/]\n")
-# W391 FIX: Ensures only a single blank line follows this comment
+    # If start equals end, return immediately with cost 0 (even if node has no outgoing edges)
+    if start == end:
+        return {"path": [start], "total_distance": 0}
+
+    # End must exist in graph as a key to be considered reachable
+    if start not in graph or end not in graph:
+        return {"path": [], "total_distance": float("inf")}
+
+    # Priority queue entries: (cost_so_far, current_node, path_list)
+    pq: list[Tuple[float, str, list]] = [(0.0, start, [start])]
+    best_costs: Dict[str, float] = {}
+
+    while pq:
+        cost, node, path = heapq.heappop(pq)
+
+        # If we reach destination, return result
+        if node == end:
+            return {"path": path, "total_distance": cost}
+
+        # Skip if we already have a better cost recorded
+        if node in best_costs and best_costs[node] <= cost:
+            continue
+        best_costs[node] = cost
+
+        # Traverse neighbors
+        for neighbor, attrs in graph.get(node, {}).items():
+            # attrs is expected to be a dict with e.g. {"distance": 5, "time": 2}
+            weight = attrs.get(mode, float("inf"))
+            if weight is None:
+                weight = float("inf")
+
+            new_cost = cost + weight
+            # Only push if we haven't seen a better path to neighbor
+            if neighbor not in best_costs or new_cost < best_costs.get(neighbor, float("inf")):
+                heapq.heappush(pq, (new_cost, neighbor, path + [neighbor]))
+
+    # No route found
+    return {"path": [], "total_distance": float("inf")}
